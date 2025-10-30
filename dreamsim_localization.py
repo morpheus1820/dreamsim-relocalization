@@ -16,17 +16,6 @@ from tqdm import tqdm
 
 
 def pose_to_transformation_matrix(x, y, yaw):
-    """
-    Converts a 2D pose (x, y, yaw) into a 3x3 homogeneous transformation matrix.
-
-    Parameters:
-    - x (float): X position
-    - y (float): Y position
-    - yaw (float): Rotation angle in radians
-
-    Returns:
-    - np.ndarray: 3x3 transformation matrix
-    """
     cos_yaw = np.cos(yaw)
     sin_yaw = np.sin(yaw)
 
@@ -49,7 +38,7 @@ class Localizer(Node):
             self.images.append(PILImage.open(sys.argv[1] + "/" + filename))
 
         # init model
-        self.device = "cpu"
+        self.device = "cuda"
         self.model, self.preprocess = dreamsim(pretrained=True, device=self.device)
 
         # compute query embeddings
@@ -60,7 +49,7 @@ class Localizer(Node):
         self.last_rgb = None
         self.br = CvBridge()
                 
-        self.img_sub = self.create_subscription(Image, "/camera_left/image_rect_color", self.image_callback, 10)
+        self.img_sub = self.create_subscription(Image, "/cer/realsense_repeater/color_image", self.image_callback, 10)
         self.amcl_sub = self.create_subscription(PoseWithCovarianceStamped, "/amcl_pose", self.amcl_callback, 10)
         self.pose_pub = self.create_publisher(PoseStamped, "pose", 10)
         
@@ -69,7 +58,7 @@ class Localizer(Node):
 
     def amcl_callback(self, msg):
         print("received amcl pose")
-        if msg.pose.covariance.max() > 0.15*0 and self.last_rgb is not None:
+        if msg.pose.covariance.max() > 0.15 and self.last_rgb is not None:
             print("covariance too high, re-localizing...")
 
             target_emb = self.model.embed(self.preprocess(PILImage.fromarray(self.last_rgb)).to(self.device))
@@ -85,11 +74,6 @@ class Localizer(Node):
             x = self.image_pose_df['x'][est]
             y = self.image_pose_df['y'][est]
             a = self.image_pose_df['a'][est]
- 
-            # T = pose_to_transformation_matrix(x, y, a)
-            # Tinv = np.linalg.inv(T)
-            # x = T[0,-1]
-            # y = T[1,-1]
              
             print("localized at: ", x, y, a, "matched to", self.image_pose_df['filename'][est], "with similarity", similarities[est])
 
