@@ -32,7 +32,10 @@ class Localizer(Node):
         super().__init__("localizer_node")
 
         # read image-pose map
-        self.image_pose_df = pd.read_csv(sys.argv[1] + "/map.csv")
+        self.image_pose_df = pd.read_csv(sys.argv[1] + "/map.csv",
+                                         header=None,
+                                         names=['index', 'x', 'y', 'a', 'filename']
+                                        )
         self.images = []
         for filename in self.image_pose_df['filename']:
             self.images.append(PILImage.open(sys.argv[1] + "/" + filename))
