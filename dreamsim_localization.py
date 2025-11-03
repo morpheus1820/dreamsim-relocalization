@@ -55,6 +55,8 @@ class Localizer(Node):
         self.img_sub = self.create_subscription(Image, "/cer/realsense_repeater/color_image", self.image_callback, 10)
         self.amcl_sub = self.create_subscription(PoseWithCovarianceStamped, "/amcl_pose", self.amcl_callback, 10)
         self.pose_pub = self.create_publisher(PoseStamped, "pose", 10)
+
+        self.get_logger().info("Localizer node started.")
         
     def image_callback(self, msg):
         self.last_rgb = self.br.imgmsg_to_cv2(msg).copy()[:,:,::-1]
