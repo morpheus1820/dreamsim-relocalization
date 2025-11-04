@@ -44,10 +44,9 @@ WORKDIR /home/${USER}
 RUN python3 -m venv venv
 
 # Install core Python dependencies
-RUN . venv/bin/activate && \
-    pip install --upgrade pip && \
-    pip install torch && \
-    pip install numpy==1.26.4
+RUN /home/${USER}/venv/bin/python -m pip install --upgrade pip \
+    && /home/${USER}/venv/bin/pip install torch \
+    && /home/${USER}/venv/bin/pip install numpy==1.26.4
 
 # Install repo-specific dependencies
 WORKDIR /home/${USER}/ros2_ws/src/dreamsim-relocalization
@@ -68,7 +67,8 @@ RUN source /opt/ros/${ROS_DISTRO}/setup.bash && \
 
 # Run script to download the model during build
 WORKDIR /home/${USER}/ros2_ws/src/dreamsim-relocalization
-RUN /bin/bash -c "source /home/${USER}/venv/bin/activate && python download_model.py"
+#RUN /home/${USER}/venv/bin/python download_model.py
+
 
 
 # Environment setup for user shell
