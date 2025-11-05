@@ -31,6 +31,8 @@ class Mapper(Node):
         self.tf_listener = TransformListener(self.tf_buffer, self)
                 
         self.img_sub = self.create_subscription(Image, "/cer/realsense_repeater/color_image", self.image_callback, 10)
+
+        self.get_logger().info("Mapper node started.")
         
         # self.img_sub = message_filters.Subscriber(self, Image, "/cer/realsense_repeater/color_image")
         # self.amcl_sub = message_filters.Subscriber(self, PoseWithCovarianceStamped, "amcl_pose")

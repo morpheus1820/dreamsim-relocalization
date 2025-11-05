@@ -1,1 +1,3 @@
 dreamsim
+opencv-python
+pandas
