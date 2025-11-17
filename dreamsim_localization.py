@@ -9,7 +9,7 @@ import torch.nn.functional as F
 from cv_bridge import CvBridge
 from dreamsim import dreamsim
 from PIL import Image as PILImage
-from geometry_msgs.msg import PoseStamped, PoseWithCovarianceStamped
+from geometry_msgs.msg import Pose, PoseWithCovarianceStamped
 from rclpy.node import Node
 from sensor_msgs.msg import Image
 from tqdm import tqdm
@@ -54,7 +54,7 @@ class Localizer(Node):
                 
         self.img_sub = self.create_subscription(Image, "/cer/realsense_repeater/color_image", self.image_callback, 10)
         self.amcl_sub = self.create_subscription(PoseWithCovarianceStamped, "/amcl_pose", self.amcl_callback, 10)
-        self.pose_pub = self.create_publisher(PoseStamped, "pose", 10)
+        self.pose_pub = self.create_publisher(Pose, "/vision", 10)
 
         self.get_logger().info("Localizer node started.")
         
@@ -85,12 +85,10 @@ class Localizer(Node):
             # TODO: send pose to amcl
             if similarities[est] > 0.7:
                 print("sending pose to amcl")
-                pose_msg = PoseStamped()
-                pose_msg.header.frame_id = "map"
-                pose_msg.header.stamp = msg.header.stamp
-                pose_msg.pose.position.x = x
-                pose_msg.pose.position.y = y
-                pose_msg.pose.position.z = 0.0
+                pose_msg = Pose()
+                pose_msg.position.x = x
+                pose_msg.position.y = y
+                pose_msg.position.z = 0.0
                 self.pose_pub.publish(pose_msg)
 
 def main(args=None):
