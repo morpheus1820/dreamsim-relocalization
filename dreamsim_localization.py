@@ -63,7 +63,7 @@ class Localizer(Node):
         self.last_rgb = self.br.imgmsg_to_cv2(msg).copy()[:,:,::-1]
 
     def amcl_callback(self, msg):
-        if msg.data == 'currently_false' :
+        if msg.data == 'currently_false' and self.last_rgb is not None :
             target_emb = self.model.embed(self.preprocess(PILImage.fromarray(self.last_rgb)).to(self.device))
 
             similarities = []
