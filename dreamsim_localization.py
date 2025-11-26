@@ -9,7 +9,8 @@ import torch.nn.functional as F
 from cv_bridge import CvBridge
 from dreamsim import dreamsim
 from PIL import Image as PILImage
-from geometry_msgs.msg import Pose, PoseWithCovarianceStamped
+from geometry_msgs.msg import Pose
+from std_msgs.msg import String
 from rclpy.node import Node
 from sensor_msgs.msg import Image
 from tqdm import tqdm
@@ -53,7 +54,7 @@ class Localizer(Node):
         self.br = CvBridge()
                 
         self.img_sub = self.create_subscription(Image, "/cer/realsense_repeater/color_image", self.image_callback, 10)
-        self.amcl_sub = self.create_subscription(PoseWithCovarianceStamped, "/amcl_pose", self.amcl_callback, 10)
+        self.amcl_sub = self.create_subscription(String, "/monitor_prop11/monitor_verdict", self.amcl_callback, 10)
         self.pose_pub = self.create_publisher(Pose, "/vision", 10)
 
         self.get_logger().info("Localizer node started.")
@@ -62,10 +63,7 @@ class Localizer(Node):
         self.last_rgb = self.br.imgmsg_to_cv2(msg).copy()[:,:,::-1]
 
     def amcl_callback(self, msg):
-        print("received amcl pose")
-        if msg.pose.covariance.max() > 0.15 and self.last_rgb is not None:
-            print("covariance too high, re-localizing...")
-
+        if msg.data == 'currently_false' and self.last_rgb is not None :
             target_emb = self.model.embed(self.preprocess(PILImage.fromarray(self.last_rgb)).to(self.device))
 
             similarities = []
@@ -79,7 +77,7 @@ class Localizer(Node):
             x = self.image_pose_df['x'][est]
             y = self.image_pose_df['y'][est]
             a = self.image_pose_df['a'][est]
-             
+            
             print("localized at: ", x, y, a, "matched to", self.image_pose_df['filename'][est], "with similarity", similarities[est])
 
             # TODO: send pose to amcl
