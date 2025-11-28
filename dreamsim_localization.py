@@ -15,18 +15,6 @@ from rclpy.node import Node
 from sensor_msgs.msg import Image
 from tqdm import tqdm
 
-
-def pose_to_transformation_matrix(x, y, yaw):
-    cos_yaw = np.cos(yaw)
-    sin_yaw = np.sin(yaw)
-
-    T = np.array([
-        [cos_yaw, -sin_yaw, x],
-        [sin_yaw,  cos_yaw, y],
-        [0,        0,       1]
-    ])
-
-    return T
     
 class Localizer(Node):
     def __init__(self):
