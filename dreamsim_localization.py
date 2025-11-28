@@ -80,8 +80,7 @@ class Localizer(Node):
             
             print("localized at: ", x, y, a, "matched to", self.image_pose_df['filename'][est], "with similarity", similarities[est])
 
-            # TODO: send pose to amcl
-            if similarities[est] > 0.7:
+            if similarities[est] > 0.65:
                 print("sending pose to amcl")
                 pose_msg = Pose()
                 pose_msg.position.x = x
