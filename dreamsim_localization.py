@@ -42,7 +42,7 @@ class Localizer(Node):
         self.br = CvBridge()
                 
         self.img_sub = self.create_subscription(Image, "/cer/realsense_repeater/color_image", self.image_callback, 10)
-        self.amcl_sub = self.create_subscription(String, "/monitor_prop11/monitor_verdict", self.amcl_callback, 10)
+        self.monitor_sub = self.create_subscription(String, "/monitor_prop11/monitor_verdict", self.monitor_callback, 10)
         self.pose_pub = self.create_publisher(Pose, "/vision", 10)
 
         self.get_logger().info("Localizer node started.")
@@ -50,7 +50,7 @@ class Localizer(Node):
     def image_callback(self, msg):
         self.last_rgb = self.br.imgmsg_to_cv2(msg).copy()[:,:,::-1]
 
-    def amcl_callback(self, msg):
+    def monitor_callback(self, msg):
         if msg.data == 'currently_false' and self.last_rgb is not None :
             target_emb = self.model.embed(self.preprocess(PILImage.fromarray(self.last_rgb)).to(self.device))
 
@@ -65,11 +65,12 @@ class Localizer(Node):
             x = self.image_pose_df['x'][est]
             y = self.image_pose_df['y'][est]
             a = self.image_pose_df['a'][est]
-            
-            print("localized at: ", x, y, a, "matched to", self.image_pose_df['filename'][est], "with similarity", similarities[est])
+
+            matched_filename = self.image_pose_df['filename'][est]
+            self.get_logger().info(f"Localized at: {x},{y},{a} matched to {matched_filename} with similarity {similarities[est]}")
 
             if similarities[est] > 0.65:
-                print("sending pose to amcl")
+                self.get_logger().info("Sending pose to amcl")
                 pose_msg = Pose()
                 pose_msg.position.x = x
                 pose_msg.position.y = y
