@@ -1,32 +1,34 @@
 #!/usr/bin/env python
 import csv
+import sys
+
 import numpy as np
 import pandas as pd
 import rclpy
-import sys
+import torch
 import torch.nn.functional as F
-
 from cv_bridge import CvBridge
 from dreamsim import dreamsim
-from PIL import Image as PILImage
 from geometry_msgs.msg import Pose
-from std_msgs.msg import String
+from PIL import Image as PILImage
 from rclpy.node import Node
 from sensor_msgs.msg import Image
+from std_msgs.msg import String
 from tqdm import tqdm
 
-    
+
 class Localizer(Node):
     def __init__(self):
         super().__init__("localizer_node")
 
         # read image-pose map
-        self.image_pose_df = pd.read_csv(sys.argv[1] + "/map.csv",
-                                         header=None,
-                                         names=['index', 'x', 'y', 'a', 'filename']
-                                        )
+        self.image_pose_df = pd.read_csv(
+            sys.argv[1] + "/map.csv",
+            header=None,
+            names=["index", "x", "y", "a", "filename"],
+        )
         self.images = []
-        for filename in self.image_pose_df['filename']:
+        for filename in self.image_pose_df["filename"]:
             self.images.append(PILImage.open(sys.argv[1] + "/" + filename))
 
         # init model
@@ -36,38 +38,50 @@ class Localizer(Node):
         # compute query embeddings
         self.query_embeddings = []
         for image in self.images:
-            self.query_embeddings.append(self.model.embed(self.preprocess(image).to(self.device)))
+            self.query_embeddings.append(
+                torch.load(image.split(".")[0] + ".pt").to(self.device)
+            )
         print("Done loading model and preprocessing images.")
         self.last_rgb = None
         self.br = CvBridge()
-                
-        self.img_sub = self.create_subscription(Image, "/cer/realsense_repeater/color_image", self.image_callback, 10)
-        self.monitor_sub = self.create_subscription(String, "/monitor_prop11/monitor_verdict", self.monitor_callback, 10)
+
+        self.img_sub = self.create_subscription(
+            Image, "/cer/realsense_repeater/color_image", self.image_callback, 10
+        )
+        self.monitor_sub = self.create_subscription(
+            String, "/monitor_prop11/monitor_verdict", self.monitor_callback, 10
+        )
         self.pose_pub = self.create_publisher(Pose, "/vision", 10)
 
         self.get_logger().info("Localizer node started.")
-        
+
     def image_callback(self, msg):
-        self.last_rgb = self.br.imgmsg_to_cv2(msg).copy()[:,:,::-1]
+        self.last_rgb = self.br.imgmsg_to_cv2(msg).copy()[:, :, ::-1]
 
     def monitor_callback(self, msg):
-        if msg.data == 'currently_false' and self.last_rgb is not None :
-            target_emb = self.model.embed(self.preprocess(PILImage.fromarray(self.last_rgb)).to(self.device))
+        if msg.data == "currently_false" and self.last_rgb is not None:
+            target_emb = self.model.embed(
+                self.preprocess(PILImage.fromarray(self.last_rgb)).to(self.device)
+            )
 
             similarities = []
 
-            for i, query_emb in tqdm(enumerate(self.query_embeddings), total=len(self.query_embeddings)):
+            for i, query_emb in tqdm(
+                enumerate(self.query_embeddings), total=len(self.query_embeddings)
+            ):
                 similarity = F.cosine_similarity(query_emb, target_emb, dim=-1).item()
                 similarities.append(similarity)
 
             est = np.argmax(similarities)
 
-            x = self.image_pose_df['x'][est]
-            y = self.image_pose_df['y'][est]
-            a = self.image_pose_df['a'][est]
+            x = self.image_pose_df["x"][est]
+            y = self.image_pose_df["y"][est]
+            a = self.image_pose_df["a"][est]
 
-            matched_filename = self.image_pose_df['filename'][est]
-            self.get_logger().info(f"Localized at: {x},{y},{a} matched to {matched_filename} with similarity {similarities[est]}")
+            matched_filename = self.image_pose_df["filename"][est]
+            self.get_logger().info(
+                f"Localized at: {x},{y},{a} matched to {matched_filename} with similarity {similarities[est]}"
+            )
 
             if similarities[est] > 0.65:
                 self.get_logger().info("Sending pose to amcl")
@@ -77,13 +91,15 @@ class Localizer(Node):
                 pose_msg.position.z = 0.0
                 self.pose_pub.publish(pose_msg)
 
+
 def main(args=None):
     rclpy.init(args=args)
     node = Localizer()
     rclpy.spin(node)
     rclpy.shutdown()
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     try:
         main()
     except KeyboardInterrupt:

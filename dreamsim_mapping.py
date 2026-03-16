@@ -4,8 +4,10 @@ import cv2
 import numpy as np
 import rclpy
 import time
+import torch
 
 from cv_bridge import CvBridge
+from dreamsim import dreamsim
 from rclpy.node import Node
 from sensor_msgs.msg import Image
 from tf2_ros import TransformException
@@ -21,6 +23,11 @@ class Mapper(Node):
         self.last_time = time.time()
         self.csvfile = open('map.csv', 'w', newline='')
         self.spamwriter = csv.writer(self.csvfile, delimiter=',', quotechar='|', quoting=csv.QUOTE_MINIMAL)
+
+        # init model
+        self.device = "cuda"
+        torch.hub._validate_not_a_forked_repo=lambda a,b,c: True
+        self.model, self.preprocess = dreamsim(pretrained=True, device=self.device)
 
         self.br = CvBridge()
         self.tf_buffer = Buffer()
@@ -56,8 +63,11 @@ class Mapper(Node):
         a = str(np.arctan2(2.0 * (q.z * q.w + q.x * q.y) , - 1.0 + 2.0 * (q.w * q.w + q.x * q.x)))
         
         rgb = self.br.imgmsg_to_cv2(msg).copy()[:,:,::-1]
-        filename = "map_image_" + str(self.img_count).zfill(5) + ".jpg"
-        cv2.imwrite(filename, rgb)
+        filename = "map_image_" + str(self.img_count).zfill(5) + ".pt"
+
+        emb = self.model.embed(self.preprocess(rgb).to(self.device))
+        torch.save(emb, filename)
+         
         self.spamwriter.writerow([str(self.img_count), x, y, a, filename])
         self.img_count += 1
         
